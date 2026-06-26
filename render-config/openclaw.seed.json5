@@ -1,0 +1,56 @@
+// Seed config for Render deployment. Applied idempotently at boot via
+// `openclaw config patch` in scripts/render/entrypoint.sh.
+//
+// Contains STRUCTURE ONLY. Every credential is a SecretRef pointing at an env
+// var; the secret VALUES live in Render as secret env vars, never in this file
+// or the git repo. See scripts/render/README.md.
+//
+// `config patch` merges recursively, so re-running on a restored config (which
+// already has these paths) is a safe no-op. To force a value, edit this file
+// and redeploy; the patch always wins on scalar/array paths.
+{
+  // Env-backed secret provider. SecretRefs with provider:"default" resolve via
+  // process env at runtime (docs/gateway/secrets.md).
+  secrets: {
+    providers: {
+      default: { source: "env" },
+    },
+  },
+
+  channels: {
+    telegram: {
+      enabled: true,
+      // SecretRef: resolves from env TELEGRAM_BOT_TOKEN at runtime.
+      // Plain botToken also works, but SecretRef keeps it out of openclaw.json.
+      botToken: { source: "env", provider: "default", id: "TELEGRAM_BOT_TOKEN" },
+      dmPolicy: "pairing",
+      groups: { "*": { requireMention: true } },
+    },
+  },
+
+  models: {
+    providers: {
+      openai: {
+        apiKey: { source: "env", provider: "default", id: "OPENAI_API_KEY" },
+      },
+      anthropic: {
+        apiKey: { source: "env", provider: "default", id: "ANTHROPIC_API_KEY" },
+      },
+    },
+  },
+
+  agents: {
+    defaults: {
+      // Default model + provider, set from env OPENCLAW_DEFAULT_MODEL in the
+      // entrypoint (so you can switch between openai/anthropic without a rebuild).
+      // The entrypoint writes this path before starting the gateway.
+      // model: { primary: "anthropic/claude-opus-4-1" },
+    },
+  },
+
+  // Long-polling is the default Telegram mode and works fine on Render free.
+  // No public webhook URL needed. Health probes are unaffected.
+  gateway: {
+    // OPENCLAW_GATEWAY_PORT + OPENCLAW_GATEWAY_BIND are set via render.yaml env.
+  },
+}

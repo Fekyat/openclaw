@@ -205,6 +205,9 @@ COPY --from=runtime-assets --chown=node:node /app/qa ./qa
 # service is launched via render.yaml dockerCommand=sh scripts/render/entrypoint.sh;
 # harmless otherwise. See scripts/render/README.md.
 COPY --from=runtime-assets --chown=node:node /app/scripts/render ./scripts/render
+# Seed openclaw.json (structure + SecretRefs; no secret values). Applied
+# idempotently at boot by scripts/render/entrypoint.sh via `openclaw config patch`.
+COPY --from=runtime-assets --chown=node:node /app/render-config ./render-config
 
 # Keep pnpm available in the runtime image for container-local workflows.
 # Use a shared Corepack home so the non-root `node` user does not need a

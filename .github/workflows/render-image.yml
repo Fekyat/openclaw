@@ -28,6 +28,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  # github.repository preserves owner case (e.g. "Fekyat/openclaw"), but Docker
+  # image names must be lowercase. Lowercase it once here and reuse everywhere.
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
@@ -40,6 +42,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Resolve the lowercase image name. GitHub provides no lowercase repository
+      # expression directly, so derive it from github.repository in a step and
+      # expose it via GITHUB_OUTPUT for subsequent steps.
+      - name: Resolve lowercase image name
+        id: image
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Builder
         uses: docker/setup-buildx-action@v3
@@ -61,8 +70,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+            ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest
+            ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:main
           # Match the official docker-release.yml extensions so the runtime has
           # the same bundled plugins the prod image ships.
           build-args: |

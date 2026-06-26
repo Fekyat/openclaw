@@ -1,11 +1,17 @@
 services:
   - type: web
     name: openclaw
-    runtime: docker
+    # Pull a prebuilt image from GHCR instead of building from source. Render's
+    # free build environment (~8GB RAM) is smaller than OpenClaw's build needs,
+    # so the image is built on GitHub Actions (16GB runners) by
+    # .github/workflows/render-image.yml and pushed here. Free-tier eligible.
+    image:
+      url: ghcr.io/fekyat/openclaw:latest
     plan: free
     # Overrides the image CMD. The Dockerfile ENTRYPOINT (tini -s) stays in
     # place, so this script runs under tini with correct signal handling.
-    # Flow: restore latest Supabase backup -> start periodic backup loop -> exec gateway.
+    # Flow: restore latest Supabase backup -> apply seed config -> set default
+    # model -> seed SOUL.md -> start periodic backup loop -> exec gateway.
     dockerCommand: sh scripts/render/entrypoint.sh
     healthCheckPath: /health
     envVars:
@@ -20,21 +26,6 @@ services:
       # the auth-free probe paths (/healthz, /ready), so no token needed there.
       - key: OPENCLAW_GATEWAY_TOKEN
         generateValue: true
-      # State lives at the default /home/node/.openclaw (pre-created with node
-      # ownership in the Dockerfile). Free tier has no persistent disk, so the
-      # entrypoint backs the SQLite DB up to Supabase and restores it on boot.
-      - key: SUPABASE_URL
-        value: https://xmlekvtivikxflsjoyup.supabase.co
-      - key: SUPABASE_BACKUP_BUCKET
-        value: openclaw-backups
-      # Secret/service-role key (bypasses RLS; bucket must stay private).
-      # sync: false -> Render prompts for this in the dashboard, never inlined.
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      # Agent persona. Render secret env var; the entrypoint writes it to
-      # /home/node/.openclaw/workspace/SOUL.md before boot. See scripts/render/README.md.
-      - key: OPENCLAW_SOUL_MD
-        sync: false
       # Default model ref, e.g. "anthropic/claude-opus-4-1" or "openai/gpt-5.5".
       # Lets you switch provider/model without a rebuild. Empty = keep seeded default.
       - key: OPENCLAW_DEFAULT_MODEL
@@ -48,4 +39,17 @@ services:
       # Telegram bot token (SecretRef in seed config). Long-polling mode works
       # on free tier without a public webhook URL.
       - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      # Agent persona. Render secret env var; the entrypoint writes it to
+      # /home/node/.openclaw/workspace/SOUL.md before boot. See scripts/render/README.md.
+      - key: OPENCLAW_SOUL_MD
+        sync: false
+      # Supabase (state persistence).
+      - key: SUPABASE_URL
+        value: https://xmlekvtivikxflsjoyup.supabase.co
+      - key: SUPABASE_BACKUP_BUCKET
+        value: openclaw-backups
+      # Secret/service-role key (bypasses RLS; bucket must stay private).
+      # sync: false -> Render prompts for this in the dashboard, never inlined.
+      - key: SUPABASE_SERVICE_KEY
         sync: false

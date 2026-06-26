@@ -201,6 +201,10 @@ COPY --from=runtime-assets --chown=node:node /app/${OPENCLAW_BUNDLED_PLUGIN_DIR}
 COPY --from=runtime-assets --chown=node:node /app/skills ./skills
 COPY --from=runtime-assets --chown=node:node /app/docs ./docs
 COPY --from=runtime-assets --chown=node:node /app/qa ./qa
+# Render free-tier persistence helpers (scripts/render/). Used only when the
+# service is launched via render.yaml dockerCommand=sh scripts/render/entrypoint.sh;
+# harmless otherwise. See scripts/render/README.md.
+COPY --from=runtime-assets --chown=node:node /app/scripts/render ./scripts/render
 
 # Keep pnpm available in the runtime image for container-local workflows.
 # Use a shared Corepack home so the non-root `node` user does not need a

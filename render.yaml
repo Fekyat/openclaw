@@ -3,17 +3,28 @@ services:
     name: openclaw
     runtime: docker
     plan: free
+    # Overrides the image CMD. The Dockerfile ENTRYPOINT (tini -s) stays in
+    # place, so this script runs under tini with correct signal handling.
+    # Flow: restore latest Supabase backup -> start periodic backup loop -> exec gateway.
+    dockerCommand: sh scripts/render/entrypoint.sh
     healthCheckPath: /health
     envVars:
       - key: OPENCLAW_GATEWAY_PORT
         value: "8080"
-      - key: OPENCLAW_STATE_DIR
-        value: /data/.openclaw
-      - key: OPENCLAW_WORKSPACE_DIR
-        value: /data/workspace
       - key: OPENCLAW_GATEWAY_TOKEN
         generateValue: true
-    disk:
-      name: openclaw-data
-      mountPath: /data
-      sizeGB: 1
+      # State lives at the default /home/node/.openclaw (pre-created with node
+      # ownership in the Dockerfile). Free tier has no persistent disk, so the
+      # entrypoint backs the SQLite DB up to Supabase and restores it on boot.
+      - key: SUPABASE_URL
+        value: https://xmlekvtivikxflsjoyup.supabase.co
+      - key: SUPABASE_BACKUP_BUCKET
+        value: openclaw-backups
+      # Secret/service-role key (bypasses RLS; bucket must stay private).
+      # sync: false -> Render prompts for this in the dashboard, never inlined.
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # Agent persona. Render secret env var; the entrypoint writes it to
+      # /home/node/.openclaw/workspace/SOUL.md before boot. See scripts/render/README.md.
+      - key: OPENCLAW_SOUL_MD
+        sync: false
